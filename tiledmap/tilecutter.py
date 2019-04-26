@@ -1,10 +1,9 @@
-import os
-import sys
-import shutil
-import math
-from PIL import Image
 import argparse
-import warnings
+import math
+import os
+import shutil
+
+from PIL import Image
 
 
 class TileCutter:
@@ -16,7 +15,8 @@ class TileCutter:
     _min_level = None
     _max_level = None
     _src_img_level = None
-    _upperleft = None
+    _fullmap_size = None  # full map size in the src img level
+    _upperleft = None  # The upper left location of image in full map
     _output = None
 
     def __init__(self, path, compress=False, bgcolor="#00000000", tile_size=256,
@@ -62,32 +62,46 @@ class TileCutter:
             maxsize = (2 ** level) * self.tile_size
         return level
 
-    def generate_tiles(self, level, image, root_dir):
+    def generate_tiles(self, level, image, upperleft, root_dir):
         tile_dir = os.path.join(root_dir, str(level))
         self.mkdir(tile_dir)
         img_width, img_height = image.size
         max_index = 2 ** level
-        for row in range(0, max_index):
-            if row * self.tile_size > img_height:
+        starttile = (int(upperleft[0] / self.tile_size), int(upperleft[1] / self.tile_size))
+        offset = (int(upperleft[0] % self.tile_size), int(upperleft[1] % self.tile_size))
+        print("start tile = %s, offset = %s" % (str(starttile), str(offset)))
+        for row in range(starttile[1], max_index):
+            relative_row = row - starttile[1]
+            if relative_row * self.tile_size > img_height:
                 return
 
-            for col in range(0, max_index):
-                if col * self.tile_size > img_width:
+            for col in range(starttile[0], max_index):
+                relative_col = col - starttile[0]
+                if relative_col * self.tile_size > img_width:
                     break
 
-                start = (col * self.tile_size, row * self.tile_size)
+                # crop rect range
+                start = (relative_col * self.tile_size - offset[0], relative_row * self.tile_size - offset[1])
                 end = (min(start[0] + self.tile_size, img_width),
                        min(start[1] + self.tile_size, img_height))
+                start = (max(start[0], 0), max(start[1], 0))
 
-                if start[0] == end[0] or start[1] == end[1]:  # no image
+                if start[0] >= end[0] or start[1] >= end[1]:  # no image
                     break
 
-                # print("tile: %d %d %d > %s %s" % (level, row, col, image.mode, str(start + end)))
+                # print("tile = %d %d %d, crop = %s" % (level, row, col, str(start + end)))
 
                 region = image.crop(start + end)
                 original_mode = image.mode
                 tile = Image.new("RGBA", (self.tile_size, self.tile_size), color=self.bgcolor)
-                tile.paste(region)
+                drawstart = [0, 0]
+                # consider offset
+                if region.size != (self.tile_size, self.tile_size):
+                    if start[0] == 0:
+                        drawstart[0] = offset[0]
+                    if start[1] == 0:
+                        drawstart[1] = offset[1]
+                tile.paste(region, tuple(drawstart))
                 if region.size == (self.tile_size, self.tile_size):
                     if original_mode == "RGBA":
                         if self.compress:
@@ -98,8 +112,7 @@ class TileCutter:
                     else:
                         tile = tile.convert("RGB")
                         tile.save(os.path.join(tile_dir, "%d_%d.png" % (col, row)), "JPEG")
-
-                else:
+                else:  # Not a full tile of size equal to tile_size
                     tile.save(os.path.join(tile_dir, "%d_%d.png" % (col, row)), "PNG")
 
     def cut(self):
@@ -122,11 +135,11 @@ class TileCutter:
         if self._max_level is None:
             self._max_level = max(self._src_img_level, self._min_level)
 
-        max_size = 2 ** self._src_img_level * 256
+        self._fullmap_size = 2 ** self._src_img_level * 256
         img_width, img_height = image.size
         for lvl in range(self._min_level, self._max_level + 1):
             print(lvl)
-            scale = (2 ** lvl * 256.0) / max_size
+            scale = (2 ** lvl * 256.0) / self._fullmap_size
             scaled_w = math.ceil(img_width * scale)
             scaled_h = img_height * scale
             if scaled_w < 1 or scaled_h < 1:
@@ -135,14 +148,18 @@ class TileCutter:
 
             size = (int(scaled_w), int(math.ceil(scaled_h)))
             scaled_img = image.resize(size, Image.ANTIALIAS)
-            print("scaled size = %s %s" % (scale, str(scaled_img.size)))
-            self.generate_tiles(lvl, scaled_img, self._output)
+            scaled_upperleft = (self._upperleft[0] * scale, self._upperleft[1] * scale)
+
+            print("scaled size = %s %s, upper left = %s"
+                  % (scale, str(scaled_img.size), str(scaled_upperleft)))
+
+            self.generate_tiles(lvl, scaled_img, scaled_upperleft, self._output)
 
         print("Finished!")
         print("Level=[%s, %s]" % (self._min_level, self._max_level))
         print(
-            "Source image: size = %s, level = %s, upper left location = %s" % (
-                str(image.size), self._src_img_level, str(self._upperleft)))
+            "Source image: size = %s, level = %s, upper left location = %s, mode = %s" % (
+                str(image.size), self._src_img_level, str(self._upperleft), image.mode))
         print("Output: " + self._output)
         if self._src_img_level < self._max_level:
             print(
@@ -157,22 +174,22 @@ if __name__ == '__main__':
                         help='Compress the image size by ignoring transparency.')
     parser.add_argument('--bgcolor', '-b',
                         help='''Tile background color, given as #rgba or #rrggbbaa.
-                        The default color is transparent (#00000000).''')
+                    The default color is transparent (#00000000).''')
     parser.add_argument('--srclevel', '-level', type=int,
                         help='''The source image level. 
-                        The default value is computed by the image size.''')
+                    The default value is computed by the image size.''')
     parser.add_argument('--minlevel', '-min', type=int,
                         help='''The min level for cutting tiles. 
-                        The default value is 0.''')
+                    The default value is 0.''')
     parser.add_argument('--maxlevel', '-max', type=int,
                         help='''The max level for cutting tiles.
-                         The default value is the source image level.''')
+                     The default value is the source image level.''')
     parser.add_argument('--upperleft', '-ul',
                         help='''The upper left location of image in full map, given as x,y, in px.
-                         The default value is 0,0.''')
+                     The default value is 0,0.''')
     parser.add_argument('--output', '-o',
                         help='''The output tiles dir path.
-                         The default path is the same with the input path.''')
+                     The default path is the same with the input path.''')
     args = parser.parse_args()
     upperleft = [0, 0]
     if args.upperleft is not None:
@@ -183,7 +200,8 @@ if __name__ == '__main__':
             upperleft[1] = int(strs[1])
 
     cutter = TileCutter(path=args.filename, compress=args.compress, bgcolor=args.bgcolor,
-                        src_level=args.srclevel, min_level=args.minlevel, max_level=args.maxlevel,
+                        src_level=args.srclevel, min_level=args.minlevel,
+                        max_level=args.maxlevel,
                         upperleft=tuple(upperleft),
                         output=args.output)
     print("\n++++++++++++++++ begin ++++++++++++++++++++")
