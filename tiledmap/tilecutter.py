@@ -32,6 +32,8 @@ class TileCutter:
             bgcolor = "#00000000"
         if upperleft is None or not isinstance(upperleft, tuple):
             upperleft = (0, 0)
+        if tile_size is None:
+            tile_size = 256
 
         self.tile_size = tile_size
         self.path = path
@@ -147,6 +149,7 @@ class TileCutter:
 
         self._fullmap_size = 2 ** self._src_img_level * self.tile_size
         img_width, img_height = image.size
+        print(self._fullmap_size)
         for lvl in range(self._min_level, self._max_level + 1):
             print(lvl)
             scale = (2 ** lvl * self.tile_size * 1.0) / self._fullmap_size
@@ -178,30 +181,33 @@ class TileCutter:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Cut a image into tiles")
+    parser = argparse.ArgumentParser(description="Cut a image into tiles.")
     parser.add_argument('filename')
-    parser.add_argument('--compress', '-c', action='store_true',
+    parser.add_argument('-c', '--compress', action='store_true',
                         help='Compress the image size by ignoring transparency.')
-    parser.add_argument('--bgcolor', '-b',
+    parser.add_argument('-i', '--info', action='store_true', default=False,
+                        help='''Show more info.''')
+    parser.add_argument('-b', '--bgcolor',
                         help='''Tile background color, given as #rgba or #rrggbbaa.
                     The default color is transparent (#00000000).''')
-    parser.add_argument('--srclevel', '-lv', type=int,
+    parser.add_argument('-lv', '--srclevel', type=int,
                         help='''The source image level. 
                     The default value is computed by the image size.''')
-    parser.add_argument('--minlevel', '-min', type=int,
+    parser.add_argument('-min', '--minlevel', type=int,
                         help='''The min level for cutting tiles. 
                     The default value is 0.''')
-    parser.add_argument('--maxlevel', '-max', type=int,
+    parser.add_argument('-max', '--maxlevel', type=int,
                         help='''The max level for cutting tiles.
                      The default value is the source image level.''')
-    parser.add_argument('--upperleft', '-ul',
+    parser.add_argument('-ul', '--upperleft',
                         help='''The upper left location of image in full map, given as x,y, in px.
                      The default value is 0,0.''')
-    parser.add_argument('--output', '-o',
+    parser.add_argument('-t', '--tilesize', type=int,
+                        help='''The tile size, in px.
+                     The default value is 256.''')
+    parser.add_argument('-o', '--output',
                         help='''The output tiles dir path.
                      The default path is the same with the input path.''')
-    parser.add_argument('--info', '-i', action='store_true', default=False,
-                        help='''Show more info.''')
     args = parser.parse_args()
     upperleft = [0, 0]
     if args.upperleft is not None:
@@ -211,11 +217,11 @@ if __name__ == '__main__':
         if len(strs) > 1:
             upperleft[1] = int(strs[1])
 
-    print(args.info)
     cutter = TileCutter(path=args.filename, compress=args.compress, bgcolor=args.bgcolor,
                         src_level=args.srclevel, min_level=args.minlevel,
                         max_level=args.maxlevel,
                         upperleft=tuple(upperleft),
+                        tile_size=args.tilesize,
                         output=args.output,
                         showinfo=args.info)
     print("\n++++++++++++++++ begin ++++++++++++++++++++")
