@@ -1,6 +1,6 @@
 
 ```shell
-
+tilecut /Users/huangziwei/Desktop/vt.jpeg -wm -ul "113.37889344222961,22.935684880426955" -lv 17 -min 15
 ```
 
 ```shell

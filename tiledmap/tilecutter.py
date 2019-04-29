@@ -1,9 +1,15 @@
+# coding=utf-8
+import sys
 import argparse
 import math
 import os
 import shutil
-
 from PIL import Image
+
+curdir = os.path.dirname(__file__)
+sys.path.append(os.path.abspath(os.path.dirname(curdir)))
+
+from tiledmap import geoutil
 
 
 class TileCutter:
@@ -149,7 +155,6 @@ class TileCutter:
 
         self._fullmap_size = 2 ** self._src_img_level * self.tile_size
         img_width, img_height = image.size
-        print(self._fullmap_size)
         for lvl in range(self._min_level, self._max_level + 1):
             print(lvl)
             scale = (2 ** lvl * self.tile_size * 1.0) / self._fullmap_size
@@ -193,29 +198,59 @@ if __name__ == '__main__':
     parser.add_argument('-lv', '--srclevel', type=int,
                         help='''The source image level. 
                     The default value is computed by the image size.''')
-    parser.add_argument('-min', '--minlevel', type=int,
+    parser.add_argument('-min', '--minlevel', type=int, default=0,
                         help='''The min level for cutting tiles. 
                     The default value is 0.''')
     parser.add_argument('-max', '--maxlevel', type=int,
                         help='''The max level for cutting tiles.
                      The default value is the source image level.''')
-    parser.add_argument('-ul', '--upperleft',
-                        help='''The upper left location of image in full map, given as x,y, in px.
+    parser.add_argument('-ul', '--upperleft', default="0,0",
+                        help='''The upper left location of image in full map, given as x,y,\
+                         in px by default.
                      The default value is 0,0.''')
-    parser.add_argument('-t', '--tilesize', type=int,
+    parser.add_argument('-t', '--tilesize', type=int, default=256,
                         help='''The tile size, in px.
                      The default value is 256.''')
     parser.add_argument('-o', '--output',
                         help='''The output tiles dir path.
                      The default path is the same with the input path.''')
+
+    # Web墨卡托投影切图，参数-ul表示经纬度，基于WGS84坐标系，中国境内会进行WGS84到GCJ02的转换
+    parser.add_argument('-wm', '--webmercator', action='store_true', default=True,
+                        help='''Web mercator projection.
+                        If true, the argument -ul is (longitude, latitude), the coordinates of WGS84''')
+    # 使用国测局坐标（火星坐标），中国境内无需进行WGS84到GCJ02的转换
+    parser.add_argument('-gcj', '--gcj02', action='store_true', default=False,
+                        help='''Whether to use the coordinates of GCJ02.
+                        If true, the argument -ul is the coordinates of GCJ02''')
+
     args = parser.parse_args()
     upperleft = [0, 0]
     if args.upperleft is not None:
         strs = args.upperleft.split(",")
-        if len(strs) > 0:
-            upperleft[0] = int(strs[0])
-        if len(strs) > 1:
-            upperleft[1] = int(strs[1])
+        if args.webmercator is not None:
+            if args.srclevel is None:
+                raise RuntimeError(
+                    "Please tell me the source image level by setting the param -lv.")
+
+            if len(strs) > 0:
+                upperleft[0] = float(strs[0])
+            if len(strs) > 1:
+                upperleft[1] = float(strs[1])
+
+            print("origin:" + str(upperleft))
+            if not args.gcj02:
+                upperleft = geoutil.wgs84_to_gcj02(upperleft[0], upperleft[1])
+
+            print("transformed:" + str(upperleft))
+            upperleft = geoutil.lnglat_to_webmercator(upperleft[0], upperleft[1])
+            print("wm:" + str(upperleft))
+            upperleft = geoutil.webmercator_to_image(upperleft, args.srclevel, args.tilesize)
+        else:
+            if len(strs) > 0:
+                upperleft[0] = int(strs[0])
+            if len(strs) > 1:
+                upperleft[1] = int(strs[1])
 
     cutter = TileCutter(path=args.filename, compress=args.compress, bgcolor=args.bgcolor,
                         src_level=args.srclevel, min_level=args.minlevel,
