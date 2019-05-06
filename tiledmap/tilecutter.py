@@ -216,7 +216,7 @@ if __name__ == '__main__':
                      The default path is the same with the input path.''')
 
     # Web墨卡托投影切图，参数-ul表示经纬度，基于WGS84坐标系，中国境内会进行WGS84到GCJ02的转换
-    parser.add_argument('-wm', '--webmercator', action='store_true', default=True,
+    parser.add_argument('-wm', '--webmercator', action='store_true', default=False,
                         help='''Web mercator projection.
                         If true, the argument -ul is (longitude, latitude), the coordinates of WGS84''')
     # 使用国测局坐标（火星坐标），中国境内无需进行WGS84到GCJ02的转换
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     upperleft = [0, 0]
     if args.upperleft is not None:
         strs = args.upperleft.split(",")
-        if args.webmercator is not None:
+        if args.webmercator:
             if args.srclevel is None:
                 raise RuntimeError(
                     "Please tell me the source image level by setting the param -lv.")
@@ -246,11 +246,12 @@ if __name__ == '__main__':
             upperleft = geoutil.lnglat_to_webmercator(upperleft[0], upperleft[1])
             print("wm:" + str(upperleft))
             upperleft = geoutil.webmercator_to_image(upperleft, args.srclevel, args.tilesize)
+            upperleft = [int(round(upperleft[0])), int(round(upperleft[1]))]  # 四舍五入准确点。。。
         else:
             if len(strs) > 0:
-                upperleft[0] = int(strs[0])
+                upperleft[0] = float(strs[0])
             if len(strs) > 1:
-                upperleft[1] = int(strs[1])
+                upperleft[1] = float(strs[1])
 
     cutter = TileCutter(path=args.filename, compress=args.compress, bgcolor=args.bgcolor,
                         src_level=args.srclevel, min_level=args.minlevel,
