@@ -236,7 +236,7 @@ if __name__ == '__main__':
                         help='''The max level for cutting tiles.
                      The default value is the source image level.''')
     parser.add_argument('-ul', '--upperleft', default="0,0",
-                        help='''The upper left location of image in full map, given as x,y,\
+                        help='''The upper left location of image in full map, given as "x,y",\
                          in px by default.
                      The default value is 0,0.''')
     parser.add_argument('-t', '--tilesize', type=int, default=256,
@@ -285,7 +285,7 @@ if __name__ == '__main__':
                 upperleft = geoutil.webmercator_to_image(upperleft, args.srclevel, args.tilesize)
             else:  # lnglat
                 projection = PROJECTION_LL
-                upperleft = geoutil.lnglat_to_image(upperleft, args.srclevel, args.tilesize)
+                upperleft = geoutil.lnglat_projecion_to_image(upperleft, args.srclevel, args.tilesize)
             upperleft = [int(round(upperleft[0])), int(round(upperleft[1]))]  # 四舍五入准确点。。。
         else:
             if len(strs) > 0:
