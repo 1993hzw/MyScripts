@@ -133,6 +133,16 @@ def webmercator_to_image(point, level, tilesize):
     return img_point
 
 
+# lnglat project point to image point
+def lnglat_to_image(point, level, tilesize):
+    img_height = 2 ** (level - 1) * tilesize
+    img_width = img_height * 2
+    img_point = [0, 0]
+    img_point[0] = (point[0] + 180) / 360 * img_width
+    img_point[1] = (-point[1] + 90) / 180 * img_height
+    return img_point
+
+
 if __name__ == "__main__":
     lnglatWgs84 = [116.40387397, 39.91488908]
     lnglatGcj02 = wgs84_to_gcj02(lnglatWgs84[0], lnglatWgs84[1])
@@ -153,3 +163,5 @@ if __name__ == "__main__":
 
     print()
     print("lngLat2WebMercatorPoint:" + str(lnglat_to_webmercator(lnglatGcj02[0], lnglatGcj02[1])))
+
+    print("lnglat_to_image:" + str(lnglat_to_image((-180, 90), 1, 256)))

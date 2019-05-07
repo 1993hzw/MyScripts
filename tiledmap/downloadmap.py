@@ -6,13 +6,23 @@ from urllib.request import urlretrieve
 
 curdir = os.path.dirname(__file__)
 
+PROJECTION_WM = "wm"
+PROJECTION_LL = "lnglat"
+
 
 class MapDownload:
-    tempfile = os.path.join(curdir, "temptilefile.png")
+    tempfile = os.path.join(curdir, "__temptilefile__.png")
+    projection = PROJECTION_LL
+
+    # https://t0.tianditu.gov.cn/img_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=c&FORMAT=tiles&TILEMATRIX=5&TILEROW=6&TILECOL=24&tk=b34f09c6586e9741629c42f716b7494b
 
     def geturl(self, level, row, col, scale=1, type="y"):
-        return "https://mt0.google.cn/maps/vt?lyrs=%s&scale=%s&hl=zh-CN&x=%d&y=%d&z=%d" % (
-            type, scale, col, row, level)
+        if self.projection == PROJECTION_LL:
+            return "https://t0.tianditu.gov.cn/img_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=c&FORMAT=tiles&TILEMATRIX=%d&TILEROW=%d&TILECOL=%d&tk=b34f09c6586e9741629c42f716b7494b" % (
+                level, row, col)
+        else:
+            return "https://mt0.google.cn/maps/vt?lyrs=%s&scale=%s&hl=zh-CN&x=%d&y=%d&z=%d" % (
+                type, scale, col, row, level)
 
     def urllib_download(self, level, row, col, scale=2, imgtype="y"):
         url = self.geturl(level, row, col, scale, imgtype)
@@ -37,12 +47,13 @@ class MapDownload:
                 self.urllib_download(self.level, row, col)
                 self.mergetile(row, col)
 
-        path = "%s-%s_%s-%s_%s.png" % (
-            level, start[0], start[1], end[0], end[1]
+        path = "%s_%s-%s_%s-%s_%s.png" % (
+            self.projection, level, start[0], start[1], end[0], end[1]
         )
         self.mapimg.save(os.path.join(curdir, path))
         os.remove(self.tempfile)
 
 
 if __name__ == '__main__':
-    MapDownload(4, (5, 11), (7, 14))
+    # MapDownload(4, (5, 11), (7, 14))
+    MapDownload(5, (3, 22), (7, 28))
