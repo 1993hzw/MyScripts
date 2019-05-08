@@ -116,12 +116,20 @@ def out_of_china(lng, lat):
     return False
 
 
-def lnglat_to_webmercator(lng, lat):
+def lnglat_to_webmercator(lnglat):
     localMapPoint = [0, 0]
-    localMapPoint[0] = lng * WEB_MERCATOR_LENGTH_HALF / 180
-    localMapPoint[1] = Math.log(Math.tan((90 + lat) * PI / 360)) / (PI / 180) * (
+    localMapPoint[0] = lnglat[0] * WEB_MERCATOR_LENGTH_HALF / 180
+    localMapPoint[1] = Math.log(Math.tan((90 + lnglat[1]) * PI / 360)) / (PI / 180) * (
             WEB_MERCATOR_LENGTH_HALF / 180)
     return localMapPoint
+
+
+def webmercator_to_lnglat(point):
+    lnglat = [0, 0]
+    lnglat[0] = point[0] / WEB_MERCATOR_LENGTH_HALF * 180
+    lnglat[1] = point[1] / WEB_MERCATOR_LENGTH_HALF * 180
+    lnglat[1] = 180 / PI * (2 * Math.atan(Math.exp(lnglat[1] * PI / 180)) - PI / 2)
+    return lnglat
 
 
 def webmercator_to_image(point, level, tilesize):
@@ -133,6 +141,16 @@ def webmercator_to_image(point, level, tilesize):
     return img_point
 
 
+def image_to_webmecator(img_point, level, tilesize):
+    img_size = 2 ** level * tilesize
+    wm_point = [0, 0]
+    wm_point[0] = img_point[0] / img_size * (
+            WEB_MERCATOR_LENGTH_HALF * 2) - WEB_MERCATOR_LENGTH_HALF
+    wm_point[1] = -(img_point[1] / img_size * (
+            WEB_MERCATOR_LENGTH_HALF * 2) - WEB_MERCATOR_LENGTH_HALF)
+    return wm_point
+
+
 # lnglat project point to image point
 def lnglat_projecion_to_image(point, level, tilesize):
     img_height = 2 ** (level - 1) * tilesize
@@ -141,6 +159,15 @@ def lnglat_projecion_to_image(point, level, tilesize):
     img_point[0] = (point[0] + 180) / 360 * img_width
     img_point[1] = (-point[1] + 90) / 180 * img_height
     return img_point
+
+
+def image_to_lnglat_projection(img_point, level, tilesize):
+    img_height = 2 ** (level - 1) * tilesize
+    img_width = img_height * 2
+    lnglat_point = [0, 0]
+    lnglat_point[0] = img_point[0] / img_width * 360 - 180
+    lnglat_point[1] = -(img_point[1] / img_height * 180 - 90)
+    return lnglat_point
 
 
 if __name__ == "__main__":
@@ -162,6 +189,8 @@ if __name__ == "__main__":
     print("bd09ToWgs84:" + str(bd09_to_wgs84(lnglatBd09[0], lnglatBd09[1])))
 
     print()
-    print("lngLat2WebMercatorPoint:" + str(lnglat_to_webmercator(lnglatGcj02[0], lnglatGcj02[1])))
+    print("lngLat2WebMercatorPoint:" + str(lnglat_to_webmercator(lnglatGcj02)))
+    print(
+        "WebMercatorPoint2Lnglat:" + str(webmercator_to_lnglat(lnglat_to_webmercator(lnglatGcj02))))
 
     print("lnglat_to_image:" + str(lnglat_projecion_to_image((-180, 90), 1, 256)))

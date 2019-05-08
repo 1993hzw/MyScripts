@@ -280,7 +280,7 @@ if __name__ == '__main__':
                     upperleft = geoutil.wgs84_to_gcj02(upperleft[0], upperleft[1])
 
                 print("transformed:" + str(upperleft))
-                upperleft = geoutil.lnglat_to_webmercator(upperleft[0], upperleft[1])
+                upperleft = geoutil.lnglat_to_webmercator(upperleft)
                 print("wm:" + str(upperleft))
                 upperleft = geoutil.webmercator_to_image(upperleft, args.srclevel, args.tilesize)
             else:  # lnglat

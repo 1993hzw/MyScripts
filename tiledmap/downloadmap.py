@@ -6,15 +6,17 @@ from urllib.request import urlretrieve
 import argparse
 
 curdir = os.path.dirname(__file__)
+sys.path.append(os.path.abspath(os.path.dirname(curdir)))
+
+from tiledmap import geoutil
 
 PROJECTION_WM = "wm"
 PROJECTION_LL = "lnglat"
+TILESIZE = 256
 
 
 class MapDownload:
     tempfile = os.path.join(curdir, "__temptilefile__.png")
-
-    # https://t0.tianditu.gov.cn/img_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=c&FORMAT=tiles&TILEMATRIX=5&TILEROW=6&TILECOL=24&tk=b34f09c6586e9741629c42f716b7494b
 
     def geturl(self, level, row, col, scale=1, type="y"):
         if self.projection == PROJECTION_LL:
@@ -24,7 +26,7 @@ class MapDownload:
             return "https://mt0.google.cn/maps/vt?lyrs=%s&scale=%s&hl=zh-CN&x=%d&y=%d&z=%d" % (
                 type, scale, col, row, level)
 
-    def urllib_download(self, level, row, col, scale=2, imgtype="y"):
+    def urllib_download(self, level, row, col, scale=1.0, imgtype="y"):
         url = self.geturl(level, row, col, scale, imgtype)
         print(url)
         urlretrieve(url, self.tempfile)
@@ -37,22 +39,24 @@ class MapDownload:
                                              height * (self.end[0] - self.start[0] + 1)))
         self.mapimg.paste(image, (width * (col - self.start[1]), height * (row - self.start[0])))
 
-    def __init__(self, level, start, end, projection=PROJECTION_WM, output=None):
+    def __init__(self, level, start, end, projection=PROJECTION_WM, tilesize=TILESIZE, output=None):
         self.level = level
         self.start = start
         self.end = end
         self.mapimg = None
         self.projection = projection
+        self.tilesize = tilesize
         self.output = output
 
-        for row in range(start[0], end[0] + 1):
-            for col in range(start[1], end[1] + 1):
-                self.urllib_download(self.level, row, col)
+    def download(self):
+        for row in range(self.start[0], self.end[0] + 1):
+            for col in range(self.start[1], self.end[1] + 1):
+                self.urllib_download(self.level, row, col, scale=self.tilesize / TILESIZE)
                 self.mergetile(row, col)
 
         if self.output is None:
-            path = "%s_%s-%s_%s-%s_%s.png" % (
-                self.projection, level, start[0], start[1], end[0], end[1]
+            path = "%s-%s-%s_%s-%s_%s.png" % (
+                self.projection, self.level, self.start[0], self.start[1], self.end[0], self.end[1]
             )
             path = os.path.join(curdir, path)
         else:
@@ -60,6 +64,18 @@ class MapDownload:
 
         self.mapimg.save(path)
         os.remove(self.tempfile)
+
+    def get_tile_lnglat(self, tile):
+        img_point = [tile[1] * mapdownload.tilesize,
+                     tile[0] * mapdownload.tilesize]
+        if mapdownload.projection == PROJECTION_LL:
+            lnglat = geoutil.image_to_lnglat_projection(img_point, mapdownload.level,
+                                                        mapdownload.tilesize)
+        else:
+            wm_point = geoutil.image_to_webmecator(img_point, mapdownload.level,
+                                                   mapdownload.tilesize)
+            lnglat = geoutil.webmercator_to_lnglat(wm_point)
+        return lnglat
 
 
 def parseTileIndex(s):
@@ -83,6 +99,9 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--tianditu', action='store_true', default=False,
                         help='''tiles source from Tianditu map.
                         The default source is Google map''')
+    parser.add_argument('-s', '--tilesize', type=int, default=256,
+                        help='''The tile size, in px.
+                     The default value is 256.''')
     parser.add_argument('-o', '--output',
                         help='''The output map dir path.
                      The default path is the same with the input path.''')
@@ -94,8 +113,15 @@ if __name__ == '__main__':
     if args.tianditu:
         projection = PROJECTION_LL
 
-    MapDownload(level=args.level,
-                start=parseTileIndex(args.start),
-                end=parseTileIndex(args.end),
-                projection=projection,
-                output=args.output)
+    mapdownload = MapDownload(level=args.level,
+                              start=parseTileIndex(args.start),
+                              end=parseTileIndex(args.end),
+                              projection=projection,
+                              tilesize=args.tilesize,
+                              output=args.output)
+
+
+    mapdownload.download()
+
+    start_lnglat = mapdownload.get_tile_lnglat(mapdownload.start)
+    print("The upper left lng/lat is %s" % (str(start_lnglat)))
