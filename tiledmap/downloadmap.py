@@ -1,15 +1,17 @@
 # coding=utf-8
+from __future__ import division
 import sys
 import os
 from PIL import Image
-from urllib.request import urlretrieve
+
+try:
+    from urllib.request import urlretrieve
+except ImportError:
+    from urllib import urlretrieve
 import argparse
+import geoutil
 
 curdir = os.path.dirname(__file__)
-sys.path.append(os.path.abspath(os.path.dirname(curdir)))
-
-from tiledmap import geoutil
-
 PROJECTION_WM = "wm"
 PROJECTION_LL = "lnglat"
 TILESIZE = 256
@@ -60,8 +62,10 @@ class MapDownload:
             )
             path = os.path.join(curdir, path)
         else:
-            path = self.output
+            path = os.path.abspath(self.output)
 
+        if path.endswith(".jpg") or path.endswith(".jpeg"):
+            self.mapimg = self.mapimg.convert("RGB")
         self.mapimg.save(path)
         os.remove(self.tempfile)
 
@@ -119,7 +123,6 @@ if __name__ == '__main__':
                               projection=projection,
                               tilesize=args.tilesize,
                               output=args.output)
-
 
     mapdownload.download()
 

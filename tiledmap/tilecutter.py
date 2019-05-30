@@ -1,16 +1,13 @@
 # coding=utf-8
+from __future__ import division
 import sys
 import argparse
 import math
 import os
-import shutil
 from PIL import Image
+import geoutil
 
 curdir = os.path.dirname(__file__)
-sys.path.append(os.path.abspath(os.path.dirname(curdir)))
-
-from tiledmap import geoutil
-
 PROJECTION_WM = "wm"
 PROJECTION_LL = "lnglat"
 
@@ -70,10 +67,10 @@ class TileCutter:
             print(info)
 
     def mkdir(self, path):
-        if os.path.exists(path):
-            shutil.rmtree(path)
+        # if os.path.exists(path):
+        #     shutil.rmtree(path)
 
-        os.mkdir(path)
+        os.makedirs(path)
 
     def _get_max_row(self, level):
         if projection == PROJECTION_LL:
@@ -170,11 +167,13 @@ class TileCutter:
         except IOError:
             raise RuntimeError("Can't open the image file: " + self.path)
 
-        dir_path = os.path.split(self.path)[0]
-        name = os.path.splitext(self.path)[0]
         if self._output is None:
-            self._output = os.path.join(dir_path, name)
-        self.mkdir(self._output)
+            dir_path = os.path.splitext(self.path)[0]
+            self._output = dir_path
+        else:
+            self._output = os.path.join(self._output,
+                                        (os.path.splitext(os.path.split(self.path)[1]))[0])
+        self.mkdir(os.path.abspath(self._output))
 
         if self._src_img_level is None:
             self._src_img_level = self.__find_max_level(image)
@@ -207,13 +206,13 @@ class TileCutter:
         print("Finished!")
         print("Level=[%s, %s]" % (self._min_level, self._max_level))
         print(
-            "Source image: size = %s, level = %s, upper left location = %s, mode = %s" % (
-                str(image.size), self._src_img_level, str(self._upperleft), image.mode))
+                "Source image: size = %s, level = %s, upper left location = %s, mode = %s" % (
+            str(image.size), self._src_img_level, str(self._upperleft), image.mode))
         print("Output: " + self._output)
         if self._src_img_level < self._max_level:
             print(
-                "Warnings: The max level %s is greater than source image level %s, which will lead to blurred tiles above level %s" \
-                % (self._max_level, self._src_img_level, self._src_img_level))
+                    "Warnings: The max level %s is greater than source image level %s, which will lead to blurred tiles above level %s" \
+                    % (self._max_level, self._src_img_level, self._src_img_level))
 
 
 if __name__ == '__main__':
@@ -285,7 +284,8 @@ if __name__ == '__main__':
                 upperleft = geoutil.webmercator_to_image(upperleft, args.srclevel, args.tilesize)
             else:  # lnglat
                 projection = PROJECTION_LL
-                upperleft = geoutil.lnglat_projecion_to_image(upperleft, args.srclevel, args.tilesize)
+                upperleft = geoutil.lnglat_projecion_to_image(upperleft, args.srclevel,
+                                                              args.tilesize)
             upperleft = [int(round(upperleft[0])), int(round(upperleft[1]))]  # 四舍五入准确点。。。
         else:
             if len(strs) > 0:
@@ -293,7 +293,8 @@ if __name__ == '__main__':
             if len(strs) > 1:
                 upperleft[1] = float(strs[1])
 
-    cutter = TileCutter(path=args.filename, compress=args.compress, bgcolor=args.bgcolor,
+    cutter = TileCutter(path=os.path.abspath(args.filename), compress=args.compress,
+                        bgcolor=args.bgcolor,
                         src_level=args.srclevel, min_level=args.minlevel,
                         max_level=args.maxlevel,
                         upperleft=tuple(upperleft),

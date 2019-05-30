@@ -1,5 +1,5 @@
 # coding=utf-8
-
+from __future__ import division
 import math
 
 WEB_MERCATOR_COORDINATE_RANGE = (-20037508.3427892, 20037508.3427892)
@@ -191,6 +191,7 @@ if __name__ == "__main__":
     print()
     print("lngLat2WebMercatorPoint:" + str(lnglat_to_webmercator(lnglatGcj02)))
     print(
-        "WebMercatorPoint2Lnglat:" + str(webmercator_to_lnglat(lnglat_to_webmercator(lnglatGcj02))))
+            "WebMercatorPoint2Lnglat:" + str(
+        webmercator_to_lnglat(lnglat_to_webmercator(lnglatGcj02))))
 
     print("lnglat_to_image:" + str(lnglat_projecion_to_image((-180, 90), 1, 256)))
